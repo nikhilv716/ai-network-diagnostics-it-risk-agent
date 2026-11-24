@@ -1,0 +1,19 @@
+DNS server 127.0.0.1:15353 | query orders.test. IN A
+orders.test. 30 IN A 127.0.0.1
+DNS exit 0
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.12.14
+Date: Tue, 24 Nov 2026 01:09:06 GMT
+Content-Type: application/json
+Content-Length: 40
+
+{"status":"ok","service":"order-entry"}
+
+http_code=200
+curl exit 0
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      0          127.0.0.1:8765      0.0.0.0:*   
+READY dns 127.0.0.1:15353
+DNS orders.test type=1 rcode=0 answer=127.0.0.1
+READY http 127.0.0.1:8765
+127.0.0.1 - - [23/Nov/2026 19:09:06] "GET /health HTTP/1.1" 200 -

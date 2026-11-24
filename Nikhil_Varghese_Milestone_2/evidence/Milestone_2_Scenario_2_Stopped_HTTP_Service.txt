@@ -1,0 +1,40 @@
+Scenario 2: Stopped HTTP service — controlled retest
+
+Healthy starting state
+READY dns 127.0.0.1:15353
+READY http 127.0.0.1:8765
+DNS server 127.0.0.1:15353 | query orders.test. IN A
+orders.test. 30 IN A 127.0.0.1
+{"status":"ok","service":"order-entry"}
+
+HTTP 200
+
+Operator action: Stopped only the HTTP service.
+
+DNS evidence
+DNS server 127.0.0.1:15353 | query orders.test. IN A
+orders.test. 30 IN A 127.0.0.1
+DNS exit 0
+
+TCP/HTTP evidence
+curl: (7) Failed to connect to orders.test port 8765 after 0 ms: Could not connect to server
+
+http_code=000
+curl exit 7
+
+Verification
+$ PROC_ROOT=/proc ss -4ltn 'sport = :8765'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port
+ss exit 0
+
+Agent conclusion and scope
+The lab DNS server returned the expected address. curl used an explicit
+mapping to that same address and failed to establish a TCP connection.
+The 000 value means curl received no HTTP response. The socket check
+completed successfully and printed only its header, confirming there
+was no IPv4 TCP listener on port 8765 when checked.
+
+The local health endpoint was unavailable. Order submission could be
+affected if it depends on this listener. This experiment tested only
+/health and did not submit an order, so actual order failures remain
+unverified.

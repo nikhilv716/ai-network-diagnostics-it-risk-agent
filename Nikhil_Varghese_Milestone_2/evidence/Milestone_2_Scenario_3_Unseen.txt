@@ -1,0 +1,67 @@
+Milestone 2 | Scenario 3 | orders.test
+
+Initial check in this execution environment
+
+DNS evidence
+$ node lab/query-dns.cjs
+DNS server 127.0.0.1:15353 | query orders.test. IN A
+DNS query failed: ECONNREFUSED
+
+exit_status=1
+
+TCP/HTTP evidence
+$ curl --noproxy '*' --connect-timeout 2 --max-time 5 --silent --show-error --include --resolve orders.test:8765:127.0.0.1 --write-out '\nhttp_code=%{http_code}\n' http://orders.test:8765/health
+curl: (7) Failed to connect to orders.test port 8765 after 0 ms: Could not connect to server
+
+http_code=000
+
+exit_status=7
+
+Verification
+$ env PROC_ROOT=/proc ss -4ltn 'sport = :8765'
+State Recv-Q Send-Q Local Address:Port Peer Address:Port
+
+exit_status=0
+
+First conclusion
+The DNS fixture refused the query. The direct loopback HTTP check also failed to connect, and ss showed no listener on port 8765. No HTTP status or body was received. curl recorded 000 because it received no HTTP response. Order submission was untested.
+
+Scenario 3 fixture run
+The supplied fixture was started unchanged in a fresh local session. The same read-only checks follow.
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3 lab/fixture.py dns
+READY dns 127.0.0.1:15353
+$ /opt/codex/runtimes/codex-primary-runtime/dependencies/python/bin/python3 lab/fixture.py http
+READY http 127.0.0.1:8765
+
+DNS evidence
+$ node lab/query-dns.cjs
+DNS server 127.0.0.1:15353 | query orders.test. IN A
+orders.test. 30 IN A 127.0.0.1
+
+exit_status=0
+
+TCP/HTTP evidence
+$ curl --noproxy '*' --connect-timeout 2 --max-time 5 --silent --show-error --include --resolve orders.test:8765:127.0.0.1 --write-out '\nhttp_code=%{http_code}\n' http://orders.test:8765/health
+HTTP/1.0 200 OK
+Server: BaseHTTP/0.6 Python/3.12.14
+Date: Tue, 24 Nov 2026 03:48:50 GMT
+Content-Type: application/json
+Content-Length: 46
+
+{"status":"degraded","service":"order-entry"}
+
+http_code=200
+
+exit_status=0
+
+Verification
+$ env PROC_ROOT=/proc ss -4ltn 'sport = :8765'
+State  Recv-Q Send-Q Local Address:Port Peer Address:Port
+LISTEN 0      0          127.0.0.1:8765      0.0.0.0:*   
+
+exit_status=0
+
+Conclusion and scope
+The local DNS fixture returned 127.0.0.1 for orders.test. The separate HTTP probe used that address explicitly. A TCP listener was present, and GET /health returned HTTP 200 with the order-entry service reporting degraded health. The health endpoint was reachable from this environment during the test.
+
+Order submission may be affected. The health response gives no cause and does not identify which operation is impaired. No order was submitted or checked for acceptance. A test order with a verified acceptance or rejection would establish the outcome for that transaction.
